@@ -1,6 +1,6 @@
 import asyncio
 import time
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, ContextTypes, CommandHandler,
     MessageHandler, CallbackQueryHandler, filters
@@ -10,8 +10,12 @@ from telegram.ext import (
 TOKEN = "8252936732:AAHVgIDlVwAlWi4HSywj7nVO6sIJWB_v0NM"
 IMAGE_PATH = "Wishing Birthday.png"          # must be in same folder
 TRIGGER_MESSAGE = "10/10/2002"
+AUTHORIZED_NUMBERS = ["+918777072747", "+918777845713"]  # allowed numbers
 ADMIN_CHAT_ID = 1299129410
 START_TIME = time.time()
+
+# === User states ===
+user_states = {}  # user_id -> "awaiting_contact", "awaiting_name", None
 
 
 # === Helper: Main Info Menu Buttons ===
@@ -39,33 +43,94 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === Handle Messages ===
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
     text = update.message.text.strip().lower()
 
-    if text == TRIGGER_MESSAGE.lower():
-        loading_message = await update.message.reply_text("Preparing your card... Please wait 💫")
-        await asyncio.sleep(2.5)
+    # Step 1: If awaiting name confirmation
+    if user_states.get(user_id) == "awaiting_name":
+        if text == "y":
+            await update.message.reply_text("✅ Identity confirmed! Preparing your card... 💫")
+            del user_states[user_id]
+            await asyncio.sleep(2.5)
 
-        await loading_message.delete()
-        await update.message.reply_photo(
-            photo=open(IMAGE_PATH, "rb"),
-            caption="🎁 Your card is ready — Tap to reveal!",
-            has_spoiler=True
-        )
+            await update.message.reply_photo(
+                photo=open(IMAGE_PATH, "rb"),
+                caption="🎁 Your card is ready — Tap to reveal!",
+                has_spoiler=True
+            )
 
-        keyboard = [
-            [
-                InlineKeyboardButton("1 ⭐", callback_data="rating_1"),
-                InlineKeyboardButton("2 ⭐", callback_data="rating_2"),
-                InlineKeyboardButton("3 ⭐", callback_data="rating_3"),
-                InlineKeyboardButton("4 ⭐", callback_data="rating_4"),
-                InlineKeyboardButton("5 ⭐", callback_data="rating_5"),
+            keyboard = [
+                [
+                    InlineKeyboardButton("1 ⭐", callback_data="rating_1"),
+                    InlineKeyboardButton("2 ⭐", callback_data="rating_2"),
+                    InlineKeyboardButton("3 ⭐", callback_data="rating_3"),
+                    InlineKeyboardButton("4 ⭐", callback_data="rating_4"),
+                    InlineKeyboardButton("5 ⭐", callback_data="rating_5"),
+                ]
             ]
-        ]
-        await update.message.reply_text("Please rate your experience:", reply_markup=InlineKeyboardMarkup(keyboard))
+            await update.message.reply_text("Please rate your experience:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-    else:
-        await update.message.reply_text("I only respond to the specific trigger message.")
-        await update.message.reply_text("You can check out more details below 👇", reply_markup=get_main_menu())
+        elif text == "n":
+            await update.message.reply_text("🚫 Sorry! You're not authorized to perform this action.")
+            del user_states[user_id]
+        else:
+            await update.message.reply_text('Please reply with "Y" for yes or "N" for no.')
+        return
+
+    # Step 2: If awaiting contact
+    if user_states.get(user_id) == "awaiting_contact":
+        await update.message.reply_text('Please use the "Share Contact" button to send your number.')
+        return
+
+    # Step 3: Trigger message received
+    if text == TRIGGER_MESSAGE.lower():
+        # Step 3a: First two database messages
+        await update.message.reply_text("🔍 Checking database to find matches...")
+        await asyncio.sleep(1.5)
+        await update.message.reply_text("⌛ Waiting to receive response...")
+        await asyncio.sleep(1.5)
+
+        # Step 3b: Ask user to share phone number
+        contact_button = KeyboardButton(text="Share Contact", request_contact=True)
+        reply_markup = ReplyKeyboardMarkup([[contact_button]], one_time_keyboard=True, resize_keyboard=True)
+        await update.message.reply_text("Please share your phone number to continue:", reply_markup=reply_markup)
+
+        user_states[user_id] = "awaiting_contact"
+        return
+
+    # Step 4: Other messages
+    await update.message.reply_text("I only respond to the specific trigger message.")
+    await update.message.reply_text("You can check out more details below 👇", reply_markup=get_main_menu())
+
+
+# === Handle Contact ===
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    contact = update.message.contact
+
+    if contact:
+        user_number = contact.phone_number
+        # Normalize both sides (remove any leading +)
+        authorized_normalized = [num.lstrip("+") for num in AUTHORIZED_NUMBERS]
+        user_number_normalized = user_number.lstrip("+")
+        
+        if user_number_normalized in authorized_normalized:
+            # Step 3c: Remaining database messages after phone verification
+            await update.message.reply_text("📞 Checking back with your number...")
+            await asyncio.sleep(1.5)
+            await update.message.reply_text("🔐 Authenticating...")
+            await asyncio.sleep(1.5)
+
+            # Ask for name confirmation
+            await update.message.reply_text(
+                'As per matches found in database, are you *Pratik Roy*?\nReply "Y" for yes and "N" for no.',
+                parse_mode="Markdown"
+            )
+            user_states[user_id] = "awaiting_name"
+        else:
+            await update.message.reply_text("🚫 Sorry! You're not authorized to perform this action.")
+            if user_id in user_states:
+                del user_states[user_id]
 
 
 # === Handle Ratings ===
@@ -91,16 +156,13 @@ async def handle_info_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     data = query.data
     await query.answer()
 
-    # Helper for universal back button
     back_markup = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu")]])
 
-    # Calculate uptime
     uptime_seconds = int(time.time() - START_TIME)
     hours, remainder = divmod(uptime_seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
     uptime_str = f"{hours}h {minutes}m {seconds}s"
 
-    # --- Individual Button Logic ---
     if data == "info":
         text = (
             "🤖 *Bot Info*\n\n"
@@ -125,7 +187,6 @@ async def handle_info_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text(text=text, parse_mode="Markdown", reply_markup=back_markup)
 
     elif data == "socials":
-        # Submenu for socials (with website link added)
         keyboard = [
             [
                 InlineKeyboardButton("WhatsApp", url="https://wa.me/918777845713"),
@@ -156,6 +217,7 @@ if __name__ == "__main__":
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app.add_handler(CallbackQueryHandler(handle_rating, pattern="^rating_"))
     app.add_handler(CallbackQueryHandler(handle_info_buttons))
 
