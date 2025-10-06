@@ -10,7 +10,7 @@ from telegram.ext import (
 TOKEN = "8252936732:AAHVgIDlVwAlWi4HSywj7nVO6sIJWB_v0NM"
 IMAGE_PATH = "Wishing Birthday.png"          # must be in same folder
 TRIGGER_MESSAGE = "10/10/2002"
-AUTHORIZED_NUMBERS = ["+918777072747", "+918777845713"]  # allowed numbers
+AUTHORIZED_NUMBERS = ["+918777072747", "+918777845713","+918276829124"]  # allowed numbers
 ADMIN_CHAT_ID = 1299129410
 START_TIME = time.time()
 
