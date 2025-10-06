@@ -2,27 +2,32 @@ import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
+# Bot configuration
 TOKEN = "8252936732:AAGYulWg2cnqnZ2iyd4ypbpskO1v9qHabwY"
-IMAGE_PATH = "Wishing Birthday.png"
+IMAGE_PATH = "Wishing Birthday.png"  # make sure this file is uploaded in same folder
 TRIGGER_MESSAGE = "10/10/2002"
-ADMIN_CHAT_ID = 1299129410  # your own chat id to receive ratings
+ADMIN_CHAT_ID = 1299129410  # your own chat ID to receive ratings
 
 # /start command handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hi! Send the secret word you just copied to get your card!❤️ ❤️ ❤️")
+    await update.message.reply_text("Hi! Send the secret word you just copied to get your card! ❤️❤️❤️")
 
 # Message handler
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip().lower()
 
     if text == TRIGGER_MESSAGE.lower():
-        # Step 1: Send fake loading message
+        # Step 1: Send loading message
         loading_message = await update.message.reply_text("Preparing your card... Please wait 💫")
-        await asyncio.sleep(2.5)  # simulate loading delay
+        await asyncio.sleep(2.5)  # simulate loading
 
-        # Step 2: Delete the loading message and send the image
+        # Step 2: Delete loading message and send spoiler image
         await loading_message.delete()
-        await update.message.reply_photo(photo=open(IMAGE_PATH, "rb"))
+        await update.message.reply_photo(
+            photo=open(IMAGE_PATH, "rb"),
+            caption="🎁 Your card is ready — Tap to reveal!",
+            has_spoiler=True
+        )
 
         # Step 3: Send rating buttons
         keyboard = [
@@ -40,19 +45,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("I only respond to the specific trigger message.")
 
-# Handle button presses (ratings)
+# Rating handler
 async def handle_rating(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    rating = query.data.split("_")[1]  # extract number
+    rating = query.data.split("_")[1]
     username = query.from_user.username or query.from_user.first_name
     user_chat_id = query.message.chat.id
 
     # Thank the user
     await query.edit_message_text(f"Thank you for your rating of {rating} ⭐!")
 
-    # Send admin message with rating info
+    # Send admin a private message with feedback info
     await context.bot.send_message(
         chat_id=ADMIN_CHAT_ID,
         text=f"User @{username} (ID: {user_chat_id}) rated {rating} ⭐"
