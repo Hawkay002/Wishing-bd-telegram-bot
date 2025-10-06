@@ -3,7 +3,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 
 # Bot configuration
-TOKEN = "8252936732:AAGYulWg2cnqnZ2iyd4ypbpskO1v9qHabwY"
+TOKEN = "8252936732:AAHVgIDlVwAlWi4HSywj7nVO6sIJWB_v0NM"
 IMAGE_PATH = "Wishing Birthday.png"  # make sure this file is uploaded in same folder
 TRIGGER_MESSAGE = "10/10/2002"
 ADMIN_CHAT_ID = 1299129410  # your own chat ID to receive ratings
