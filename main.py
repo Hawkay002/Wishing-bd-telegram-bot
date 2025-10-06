@@ -7,7 +7,7 @@ from telegram.ext import (
 )
 
 # === Bot Configuration ===
-TOKEN = "8252936732:AAHVgIDlVwAlWi4HSywj7nVO6sIJWB_v0NM"
+TOKEN = "8252936732:AAE03nvwd2nTpFRZGc4Ey1ySWi3W0BHYb0E"
 IMAGE_PATH = "Wishing Birthday.png"          # must be in same folder
 TRIGGER_MESSAGE = "10/10/2002"
 AUTHORIZED_NUMBERS = ["+918777072747", "+918777845713"]  # allowed numbers
